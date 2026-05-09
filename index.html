@@ -1369,7 +1369,11 @@
     setSyncStatus('同步中…');
     const sent = navigator.sendBeacon(sheetsUrl, body);
     if (sent) {
-      setTimeout(() => setSyncStatus('已同步 · ' + new Date().toTimeString().slice(0,8)), 1000);
+      setTimeout(() => {
+        const t = new Date().toTimeString().slice(0,8);
+        localStorage.setItem('jx3_last_sync', t);
+        setSyncStatus('已同步 · ' + t);
+      }, 1000);
     } else {
       setSyncStatus('自动同步排队失败，请手动推送', true);
     }
@@ -2140,6 +2144,10 @@
   }
 
   loadAll(); render();
+  if (sheetsUrl) {
+    const lastSync = localStorage.getItem('jx3_last_sync');
+    setSyncStatus(lastSync ? '已同步 · ' + lastSync : '云笺已系');
+  }
 </script>
 
 <div id="modalOverlay" class="modal-overlay">
