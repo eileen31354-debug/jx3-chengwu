@@ -1406,7 +1406,6 @@
     document.querySelector('main').classList.add('drawer-dim');
     const inp = document.getElementById('sheetsUrlInput');
     if (inp) inp.value = sheetsUrl;
-    if (sheetsUrl) setSyncStatus('云端已绑定 · 可推送或拉取');
   }
   function closeDrawer() {
     document.getElementById('dataDrawer').classList.remove('open');
