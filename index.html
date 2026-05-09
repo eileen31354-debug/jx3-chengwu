@@ -1424,9 +1424,8 @@
     } else if (/同步中|推送中|拉取中/.test(msg)) {
       brief = '驿寄云间';
     } else if (/已同步|已推送|已拉取/.test(msg)) {
-      brief = '云笺已系';
       const sep = msg.indexOf(' · ');
-      if (sep !== -1) detail = msg.slice(sep + 1);
+      brief = '云笺已系' + (sep !== -1 ? '  ' + msg.slice(sep + 1) : '');
     } else if (/绑定|云端/.test(msg)) {
       brief = '云笺已系';
     } else {
