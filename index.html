@@ -806,6 +806,59 @@
       100% { background: transparent; }
     }
 
+    /* ─── 自定义模态框 ─────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 600;
+      background: rgba(26,37,53,0.22);
+      backdrop-filter: blur(1.5px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.28s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .custom-modal {
+      background: #fdfaf5;
+      border: 1px solid #d4c9b8;
+      border-radius: 4px;
+      font-family: 'Noto Serif SC', 'STSong', serif;
+      padding: 36px 40px 28px;
+      width: 320px;
+      box-shadow: 0 2px 8px rgba(26,37,53,0.08),
+                  0 12px 40px rgba(26,37,53,0.14),
+                  0 32px 80px rgba(26,37,53,0.10);
+      text-align: center;
+      transform: translateY(-10px);
+      transition: transform 0.32s cubic-bezier(0.22,0.9,0.36,1);
+    }
+    .modal-overlay.open .custom-modal { transform: translateY(0); }
+    .modal-title {
+      font-size: 17px; font-weight: 700; color: var(--ink);
+      letter-spacing: 6px; margin: 0 0 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(26,37,53,0.10);
+    }
+    .modal-body {
+      font-size: 13px; color: var(--ink-mid); line-height: 1.85;
+      letter-spacing: 0.5px; margin: 0 0 28px;
+    }
+    .modal-footer { display: flex; justify-content: center; gap: 14px; }
+    .modal-btn {
+      font-family: 'Noto Serif SC', 'STSong', serif;
+      font-size: 13px; letter-spacing: 2px;
+      padding: 6px 22px 8px; border-radius: 3px;
+      background: transparent; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background 0.18s, color 0.18s;
+    }
+    .modal-btn-cancel {
+      border: 1px solid var(--border-mid); color: var(--muted);
+    }
+    .modal-btn-cancel:hover { background: var(--gold-dim); color: var(--ink); }
+    .modal-btn-confirm {
+      border: 1px solid #a61b29; color: #a61b29;
+    }
+    .modal-btn-confirm:hover { background: rgba(166,27,41,0.08); }
+
     /* ─── 考据归档 抽屉 ──────────────────────────────────────── */
     .drawer-overlay {
       position: fixed; inset: 0; z-index: 400;
@@ -1465,10 +1518,23 @@
     document.head.appendChild(script);
   }
 
+  function showModal(onConfirm) {
+    const overlay = document.getElementById('modalOverlay');
+    overlay.classList.add('open');
+    const cancel  = document.getElementById('modalCancel');
+    const confirm = document.getElementById('modalConfirm');
+    const close = () => overlay.classList.remove('open');
+    const onC = () => { close(); onConfirm(); };
+    cancel.onclick  = close;
+    confirm.onclick = onC;
+    overlay.onclick = e => { if (e.target === overlay) close(); };
+  }
+
   function resetAll() {
-    if (!confirm('确定要重置所有角色的奇遇进度？')) return;
-    ALL_CHARS.forEach(c => ADVENTURES.forEach(adv => { progress[c.id][adv.id] = 0; }));
-    saveAll(); render();
+    showModal(() => {
+      ALL_CHARS.forEach(c => ADVENTURES.forEach(adv => { progress[c.id][adv.id] = 0; }));
+      saveAll(); render();
+    });
   }
 
   function toggleCollapse(accId) {
@@ -2077,5 +2143,16 @@
 
   loadAll(); render();
 </script>
+
+<div id="modalOverlay" class="modal-overlay">
+  <div class="custom-modal">
+    <h3 class="modal-title">慎思</h3>
+    <p class="modal-body">确定要清空所有角色的奇遇进度吗？<br>此举如焚稿，不可复得。</p>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="modalCancel">罢手</button>
+      <button class="modal-btn modal-btn-confirm" id="modalConfirm">焚稿</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
