@@ -1021,6 +1021,15 @@
     }
     .weapon-acc-bar { width: 3px; height: 18px; border-radius: 2px; background: var(--ink); flex-shrink: 0; }
     .weapon-acc-name { font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif; font-size: 17px; font-weight: 700; letter-spacing: 5px; color: var(--ink); }
+    .weapon-acc-lbl { cursor: pointer; user-select: none; }
+    .weapon-acc-lbl:hover { background: linear-gradient(to right, rgba(26,37,53,0.10) 0%, rgba(26,37,53,0.04) 55%, transparent 100%); }
+    .weapon-acc-chevron {
+      margin-left: auto; display: flex; align-items: center;
+      color: rgba(26,37,53,0.30); transition: transform 0.2s, color 0.15s;
+    }
+    .weapon-acc-lbl:hover .weapon-acc-chevron { color: rgba(26,37,53,0.55); }
+    .weapon-acc-group.collapsed .weapon-acc-chevron { transform: rotate(-90deg); }
+    .weapon-acc-group.collapsed .weapon-acc-rows { display: none; }
 
     .weapon-char-row {
       display: flex; align-items: center; gap: 10px;
@@ -1051,6 +1060,21 @@
     .weapon-entry.owned     { color: var(--ink); }
     .weapon-entry.preparing { color: var(--ink-mid); }
     .weapon-entry.waiting   { color: var(--gold); }
+
+    .weapon-name {
+      cursor: pointer; border-radius: 2px; padding: 0 1px;
+      transition: background 0.15s;
+    }
+    .weapon-name:hover { background: rgba(44,62,80,0.07); }
+
+    .weapon-edit-input {
+      font-family: 'Noto Serif SC', 'STSong', 'SimSun', serif;
+      font-size: inherit; color: inherit; letter-spacing: 0.08em;
+      background: transparent; border: none;
+      border-bottom: 1px solid rgba(44,62,80,0.28);
+      outline: none; padding: 0 2px;
+      min-width: 4em; width: 8em;
+    }
 
     .weapon-stage {
       font-size: 9px; color: var(--muted); margin-right: 2px;
@@ -1956,8 +1980,10 @@
       { id:'high', label:'120', title:'120级券' },
     ],
   };
-  let wSub = { cw: 'owned', sow: 'owned' };
+  let wSub = { cw: 'preparing', sow: 'preparing' };
+  let wCollapsed = { cw: {}, sow: {} };
   let wAdding = null; // { charId, type, sub }
+  let wEditing = null; // { charId, type, sub, idx }
   let wCouponEdit = null; // { charId, type } | null
 
   function getWeapons(charId, type, sub) {
@@ -1993,6 +2019,35 @@
   }
 
   function cancelWeapon(type) { wAdding = null; renderWeaponPane(type); }
+
+  function startEditWeapon(charId, type, sub, idx) {
+    wAdding = null;
+    wEditing = { charId, type, sub, idx };
+    renderWeaponPane(type);
+    setTimeout(() => {
+      const inp = document.getElementById('w-edit-inp');
+      if (inp) { inp.focus(); inp.select(); }
+    }, 0);
+  }
+
+  function commitEditWeapon(type) {
+    if (!wEditing) return;
+    const { charId, sub, idx } = wEditing;
+    const inp = document.getElementById('w-edit-inp');
+    const name = inp?.value.trim();
+    const list = weaponData[charId][type][sub];
+    if (name) {
+      list[idx] = type === 'sow' ? { ...list[idx], name } : name;
+      saveAll();
+    }
+    wEditing = null;
+    renderWeaponPane(type);
+  }
+
+  function handleEditWeaponKey(e, type) {
+    if (e.key === 'Enter')  commitEditWeapon(type);
+    if (e.key === 'Escape') { wEditing = null; renderWeaponPane(type); }
+  }
 
   function handleWeaponKey(e, type) {
     if (e.key === 'Enter')  commitWeapon(type);
@@ -2047,9 +2102,9 @@
     if (!pane) return;
 
     const subDefs = [
-      { id:'owned',     label:'已拓印' },
       { id:'preparing', label:'筹备中' },
       { id:'waiting',   label:'候时而动' },
+      { id:'owned',     label:'已拓印' },
     ];
 
     const subNavHtml = subDefs.map((s, i) => `
@@ -2058,15 +2113,22 @@
         onclick="wSub['${type}']='${s.id}'; renderWeaponPane('${type}')">${s.label}</button>
     `).join('');
 
-    const contentHtml = ACCOUNTS.map(acc => {
+    const contentHtml = ACCOUNTS.map((acc, accIdx) => {
       const rows = acc.characters.map(char => {
         const list   = getWeapons(char.id, type, sub);
         const isAdd  = wAdding?.charId === char.id && wAdding?.type === type && wAdding?.sub === sub;
 
         const tagsHtml = list.map((w, idx) => {
-          const name  = type === 'sow' ? w.name : w;
+          const name    = type === 'sow' ? w.name : w;
+          const isEdit  = wEditing?.charId === char.id && wEditing?.type === type && wEditing?.sub === sub && wEditing?.idx === idx;
+          const nameHtml = isEdit
+            ? `「<input id="w-edit-inp" class="weapon-edit-input"
+                  value="${name.replace(/"/g, '&quot;')}"
+                  onkeydown="handleEditWeaponKey(event,'${type}')"
+                  onblur="setTimeout(()=>commitEditWeapon('${type}'),160)">」`
+            : `<span class="weapon-name" onclick="startEditWeapon('${char.id}','${type}','${sub}',${idx})">「${name}」</span>`;
           return `<span class="weapon-entry ${sub}">
-            「${name}」
+            ${nameHtml}
             <button class="weapon-rm" onclick="removeWeapon('${char.id}','${type}','${sub}',${idx})">×</button>
           </span>`;
         }).join('');
@@ -2107,12 +2169,14 @@
         </div>`;
       }).join('');
 
-      return `<div class="weapon-acc-group">
-        <div class="weapon-acc-lbl">
+      const isCollapsed = !!wCollapsed[type][accIdx];
+      return `<div class="weapon-acc-group${isCollapsed ? ' collapsed' : ''}">
+        <div class="weapon-acc-lbl" onclick="wCollapsed['${type}'][${accIdx}]=!wCollapsed['${type}'][${accIdx}]; renderWeaponPane('${type}')">
           <div class="weapon-acc-bar"></div>
           <span class="weapon-acc-name">${acc.name}</span>
+          <span class="weapon-acc-chevron"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><polyline points="2,3.5 5,6.5 8,3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </div>
-        ${rows}
+        <div class="weapon-acc-rows">${rows}</div>
       </div>`;
     }).join('');
 
@@ -2133,7 +2197,7 @@
     document.getElementById(`pane-${tab}`).classList.add('active');
     document.getElementById(`tabBtn-${tab}`).classList.add('active');
     if (tab === 'inventory') { renderInventory(); }
-    if (tab === 'cw' || tab === 'sow') { wCouponEdit = null; wAdding = null; renderWeaponPane(tab); }
+    if (tab === 'cw' || tab === 'sow') { wCouponEdit = null; wAdding = null; wEditing = null; renderWeaponPane(tab); }
   }
 
   // ─── Main ────────────────────────────────────────────────────
