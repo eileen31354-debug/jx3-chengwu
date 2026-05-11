@@ -283,6 +283,12 @@
       display: inline-block; width: 1.2em; text-align: center; flex-shrink: 0;
     }
 
+    .consume-hint {
+      font-size: 10px; font-weight: 400; font-style: italic;
+      opacity: 0.45; margin-left: 2px; flex-shrink: 0;
+      font-family: var(--sans);
+    }
+
     .dot-xs {
       display: inline-block; width: 5px; height: 5px;
       border-radius: 50%; vertical-align: middle;
@@ -1672,14 +1678,18 @@
       const reqHtml = Object.entries(adv.requirements).map(([lvl, qty]) => {
         const iron = IRON_MAP[parseInt(lvl)];
         const isConsumed = adv.consumes[lvl] !== undefined;
-        const minusHtml = isConsumed
-          ? `<span class="req-minus" title="触发奇遇时将扣除此数量">−</span>`
-          : `<span class="req-minus" aria-hidden="true"></span>`;
+        const consumeQty = adv.consumes[lvl];
+        const isPartial  = isConsumed && consumeQty !== qty;
+        const suffixHtml = isPartial
+          ? `<span class="consume-hint" title="触发后实际扣除 ${consumeQty} 块">(${consumeQty})</span>`
+          : isConsumed
+            ? `<span class="req-minus" title="触发奇遇时将扣除此数量">−</span>`
+            : `<span class="req-minus" aria-hidden="true"></span>`;
         return `<span class="req-tag${isConsumed ? ' consumed' : ''}" style="border-left-color:${iron.color}" data-iron="${lvl}">
           <span class="req-dot" style="background:${iron.color}"></span>
           <span class="req-label">${lvl}级·${iron.name}</span>
           <span class="req-spacer"></span>
-          <span class="req-qty">${qty}</span>${minusHtml}
+          <span class="req-qty">${qty}</span>${suffixHtml}
         </span>`;
       }).join('');
       return `<div class="adv-hdr-col">
